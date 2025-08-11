@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    label { display: block; margin-top: 8px; }
+    input, select { width: 100%; padding: 6px; margin-top: 4px; }
+    button { margin-top: 12px; padding: 8px 12px; }
+    .reservation-list { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px; }
+    .item { border-bottom: 1px solid #eee; padding: 6px 0; }
+  </style>
+</head>
+<body>
+  <h1>予約フォーム</h1>
+  <form id="reservationForm">
+    <label>名前<input name="name" required></label>
+    <label>学年
+      <select name="grade" required>
+        <option value="">選択してください</option>
+        <option value="1年">1年</option>
+        <option value="2年">2年</option>
+        <option value="3年">3年</option>
+      </select>
+    </label>
+    <label>クラス<input name="classNumber" required></label>
+    <label>人数<input type="number" name="numberOfPeople" min="1" required></label>
+    <label>来場時間
+      <select name="visitTime" required>
+        <option value="午前">午前</option>
+        <option value="午後">午後</option>
+      </select>
+    </label>
+    <button type="submit">予約する</button>
+  </form>
+
+  <div id="result"></div>
+
+  <div class="reservation-list">
+    <h2>現在の予約状況</h2>
+    <div id="reservations"></div>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGqhJ7bS713VHd81krfcuHn9iDdsrylsV7Ao0AhSiFgRLDQUCipkoFEpqFd6yLVWKUBA/exec";
+
+    document.getElementById("reservationForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const formData = Object.fromEntries(new FormData(e.target));
+      formData.numberOfPeople = Number(formData.numberOfPeople);
+      try {
+        const reservationNumber = await google.script.run.withSuccessHandler(num => {
+          document.getElementById("result").textContent = `予約完了！番号: ${num}`;
+          e.target.reset();
+          loadReservations();
+        }).addReservation(formData.name, formData.grade, formData.classNumber, formData.numberOfPeople, formData.visitTime);
+      } catch (err) {
+        document.getElementById("result").textContent = "予約に失敗しました。";
+      }
+    });
+
+    function loadReservations() {
+      google.script.run.withSuccessHandler(data => {
+        const container = document.getElementById("reservations");
+        container.innerHTML = data.map(r =>
+          `<div class="item">#${r.reservationNumber} ${r.name} (${r.numberOfPeople}人) - ${r.visitTime} - ${r.status}</div>`
+        ).join("");
+      }).getReservations();
+    }
+
+    // 初回 & 20秒ごと更新
+    loadReservations();
+    setInterval(loadReservations, 20000);
+  </script>
+</body>
+</html>
